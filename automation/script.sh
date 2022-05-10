@@ -49,7 +49,6 @@ sudo mysql -u root --password=$mssqlpass -e "GRANT ALL PRIVILEGES ON wikidatabas
 sudo mysql -u root --password=$mssqlpass -e "FLUSH PRIVILEGES;"
 
 ## Download and Extract the MediaWiki Files
-
 cd /home
 sudo wget https://releases.wikimedia.org/mediawiki/1.37/mediawiki-1.37.2.tar.gz
 sudo mv mediawiki-1.37.2.tar.gz /var/www/html
