@@ -14,7 +14,7 @@ sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noa
 sudo dnf install https://rpms.remirepo.net/enterprise/remi-release-8.rpm -y
 
 ## Install PHP from the Remi repository
-sudo dnf module reset php
+sudo dnf module reset php -y
 sudo dnf module install php:remi-8.0 -y
 
 ## Install the php module to support the use of the MariaDB 
