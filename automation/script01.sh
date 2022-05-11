@@ -37,4 +37,13 @@ sed -i "s|wikiPassword|$wikiPassword|" script02.sh
 
 sudo bash script02.sh
 
+## Download and Extract the MediaWiki Files
+cd /home
+sudo wget https://releases.wikimedia.org/mediawiki/1.37/mediawiki-1.37.2.tar.gz
+sudo mv mediawiki-1.37.2.tar.gz /var/www/html
+cd /var/www/html/
+sudo tar xvzf /var/www/html/mediawiki-1.37.2.tar.gz
+mv /var/www/html/mediawiki-1.37.2 /var/www/html/w
 
+## Restart apache service
+sudo systemctl restart httpd
