@@ -35,7 +35,7 @@ sudo systemctl start mariadb
 sed -i "s|mssqlpass|$mssqlpass|" script02.sh
 sed -i "s|wikiPassword|$wikiPassword|" script02.sh
 
-sudo bash script02.sh
+su -c 'sh script02.sh'
 
 ## Download and Extract the MediaWiki Files
 cd /home
