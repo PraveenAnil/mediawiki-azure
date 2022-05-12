@@ -61,7 +61,7 @@ Currently, the MediaWiki is deployed as a standalone instance in VMSS with only 
 
 The database is locally installed within the VM using the scripts.
 
-To make it highly available, you can deploy the database separately in a managed database service which can be deployed to the same network as the VMSS.
+To make it highly scalable, you can deploy the database separately in a managed database service which can be deployed to the same network as the VMSS.
 
 ## Limitation / Known Issues
 
