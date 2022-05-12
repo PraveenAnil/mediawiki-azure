@@ -15,7 +15,7 @@ MediaWiki is:
 
 ## Prerequisites :
 
-  - You should have a Microsoft Azure account with atleast contributor level role on Resource Group level scope.
+  - You should have a Microsoft Azure account with atleast contributor role on Resource Group level scope.
   - You should have access to an SSH Client or access to CloudShell for Azure to connect to the MediaWiki deployed linux machines
 
 ## Deploy MediaWiki in Azure
