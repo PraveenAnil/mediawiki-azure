@@ -4,13 +4,14 @@ echo "Started script 02" >> /tmp/logscript2.txt
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
 mysql_secure_installation <<EOF
-y
+
+Y
 mssqlpass
 mssqlpass
-y
-y
-y
-y
+Y
+Y
+Y
+Y
 EOF
 
 ## Create a database and a database user for MediaWiki
