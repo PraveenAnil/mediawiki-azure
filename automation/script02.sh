@@ -1,5 +1,5 @@
 #!/bin/bash
-
+echo "Started script 02" >> /tmp/logscript2.txt
 ## Secure the MariaDB installation
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
