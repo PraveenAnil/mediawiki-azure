@@ -40,7 +40,7 @@ The deployment takes between 5 to 10 minutes and the output of the template incl
 
 1. Once the deployment is complete, from the outputs, navigate to MediaWiki URL and configure the setup, and proceed through the setup steps. 
 Choose the MariaDB option when prompted for a database server, and enter the database name, username, and user password from the output of the deployment. 
-2. Login to the VM instance using the DNSName:50001. An inbound Nat Rule is configured within the load balancer to allow ssh to the instance.
+2. Login to the VM instance using the DNSName:50001. An inbound Nat Rule is configured within the load balancer to allow ssh to the instance. If there are multiple instances, port no of each instance will be 5000[1..n]
 3. Download the LocalSettings.php file when prompted at the end of the setup process, then move it or copy its contents to /var/www/html/w/LocalSettings.php
 4. Adjust the file’s permissions:  sudo chmod 664 /var/www/html/w/LocalSettings.php
 
@@ -57,7 +57,9 @@ Choose the MariaDB option when prompted for a database server, and enter the dat
 
 Currently, the MediaWiki is deployed as a standalone instance in VMSS with only 1 count.
 
-The database is locally installed within the VM using the scripts. 
+The database is locally installed within the VM using the scripts.
+
+To make it highly available, you can deploy the database separately in a managed database service which can be deployed to the same network as the VMSS.
 
 ## Limitation / Known Issues
 
