@@ -24,6 +24,8 @@ MediaWiki is:
 
 You can click on the above button to deploy directly in Azure.
 
+Once you have filled out the required passwords, you can create the deployment.
+
 The deployment takes between 5 to 10 minutes and the output of the template includes the following details:
 
 1. MediaWiki URL
