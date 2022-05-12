@@ -121,8 +121,11 @@
     {
       "type": "Microsoft.Network/publicIPAddresses",
       "name": "[variables('mwikiPublicIPAddressName')]",
-      "apiVersion": "2017-06-01",
+      "apiVersion": "2020-06-01",
       "location": "[parameters('location')]",
+       "sku": {
+                "name": "Standard"
+            },
       "properties": {
         "publicIPAllocationMethod": "Dynamic",
         "dnsSettings": {
@@ -134,8 +137,11 @@
     {
       "type": "Microsoft.Network/loadBalancers",
       "name": "[variables('mwikiNodeLoadBalancerName')]",
-      "apiVersion": "2017-06-01",
+      "apiVersion": "2020-06-01",
       "location": "[parameters('location')]",
+       "sku": {
+                "name": "Standard"
+            },
       "properties": {
         "frontendIPConfigurations": [
           {
