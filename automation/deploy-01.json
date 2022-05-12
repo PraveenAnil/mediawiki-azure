@@ -1,0 +1,336 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "mwikiNodeCount": {
+      "type": "int",
+      "minValue": 1,
+      "maxValue": 50,
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Number of mwiki node in VMSS; if singlePlacementGroup is true (the default), then this value must be 100 or less; if singlePlacementGroup is false, then ths value must be 50 or less"
+      }
+    },
+    "mwikiNodeSku": {
+      "defaultValue": "Standard_DS1_v2",
+      "type": "string",
+      "metadata": {
+        "description": "Size of VMs in the VM Scale Set for mwiki node."
+      }
+    },
+
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "mwikiuser",
+      "metadata": {
+        "description": "Admin username on all VMs."
+      }
+    },
+
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "authenticationType": {
+      "type": "string",
+      "defaultValue": "password",
+      "allowedValues": [
+        "sshPublicKey",
+        "password"
+      ],
+      "metadata": {
+        "description": "Type of authentication to use on the Virtual Machine. SSH key is recommended."
+      }
+    },
+    "adminPasswordOrKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "SSH Key or password for the Virtual Machine. SSH key is recommended."
+      }
+    },
+    "mssqlPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the MySQL"
+      }
+    },
+    "wikiPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the Wiki User"
+      }
+    }
+  },
+  "variables": {
+    "customScriptCommand": "su -c'sh ",
+    "scriptClose": "'",
+    "vmssName": "[concat('vmss', uniqueString(resourceGroup().id, deployment().name))]",
+    "vnetName": "[concat('vnet-', variables('vmssName'))]",
+    "subnetmwiki": "[concat('mwikisubnet-', variables('vmssName'))]",
+    "subnetData": "[concat('datasubnet-', variables('vmssName'))]",
+    "mwikiPublicIPAddressName": "[toLower(concat('pip-mwiki', variables('vmssName')))]",
+    "vmssDomainName": "[toLower(concat('pubdns', variables('vmssName')))]",
+    "mwikiNodeLoadBalancerName": "[concat('LB-mwikiN', variables('vmssName'))]",
+    "mwikiNodeLoadBalancerFrontEndName": "[concat('LBFrontEnd', variables('vmssName'))]",
+    "mwikiNodeLoadBalancerBackEndName": "[concat('LBBackEnd',variables('vmssName'))]",
+    "mwikiNodeLoadBalancerProbeName": "[concat('LBHttpProbe', variables('vmssName'))]",
+    "mwikiNodeLoadBalancerNatPoolName": "[concat('LBNatPool', variables('vmssName'))]",
+    "linuxConfiguration": {
+      "disablePasswordAuthentication": true,
+      "ssh": {
+        "publicKeys": [
+          {
+            "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+            "keyData": "[parameters('adminPasswordOrKey')]"
+          }
+        ]
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('vnetName')]",
+      "apiVersion": "2020-08-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetmwiki')]",
+            "properties": {
+              "addressPrefix": "10.0.0.0/24"
+            }
+          },
+          {
+            "name": "[variables('subnetData')]",
+            "properties": {
+              "addressPrefix": "10.0.1.0/24"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('mwikiPublicIPAddressName')]",
+      "apiVersion": "2017-06-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[concat(variables('vmssDomainName'),'-mwiki-node')]"
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "name": "[variables('mwikiNodeLoadBalancerName')]",
+      "apiVersion": "2017-06-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "[variables('mwikiNodeLoadBalancerFrontEndName')]",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('mwikiPublicIPAddressName'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('mwikiNodeLoadBalancerBackendName')]"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "name": "roundRobinLBRule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('mwikiNodeLoadBalancerName'), variables('mwikiNodeLoadBalancerFrontEndName'))]"
+              },
+              "backendAddressPool": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('mwikiNodeLoadBalancerName'), variables('mwikiNodeLoadBalancerBackendName'))]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 80,
+              "backendPort": 80,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 5,
+              "probe": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', variables('mwikiNodeLoadBalancerName'), variables('mwikiNodeLoadBalancerProbeName'))]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "[variables('mwikiNodeLoadBalancerProbeName')]",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 80,
+              "intervalInSeconds": 5,
+              "numberOfProbes": 2
+            }
+          }
+        ],
+        "inboundNatPools": [
+          {
+            "name": "[variables('mwikiNodeLoadBalancerNatPoolName')]",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('mwikiNodeLoadBalancerName'), variables('mwikiNodeLoadBalancerFrontEndName'))]"
+              },
+              "protocol": "Tcp",
+              "frontendPortRangeStart": 50000,
+              "frontendPortRangeEnd": 50019,
+              "backendPort": 22
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses/', variables('mwikiPublicIPAddressName'))]"
+      ]
+    },
+
+    {
+      "type": "Microsoft.Compute/virtualMachineScaleSets",
+      "sku": {
+        "name": "[parameters('mwikiNodeSku')]",
+        "tier": "Standard",
+        "capacity": "[parameters('mwikiNodeCount')]"
+      },
+      "name": "[concat(variables('vmssName'), '-mwiki-node')]",
+      "apiVersion": "2017-12-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "upgradePolicy": {
+          "mode": "Manual"
+        },
+        "virtualMachineProfile": {
+          "storageProfile": {
+            "osDisk": {
+              "caching": "ReadWrite",
+              "createOption": "FromImage"
+            },
+            "imageReference": {
+              "publisher": "OpenLogic",
+              "offer": "CentOS-LVM",
+              "sku": "8-lvm-gen2",
+              "version": "latest"
+            }
+          },
+          "osProfile": {
+            "computerNamePrefix": "[variables('vmssName')]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "adminPassword": "[parameters('adminPasswordOrKey')]",
+            "linuxConfiguration": "[if(equals(parameters('authenticationType'), 'password'), json('null'), variables('linuxConfiguration'))]"
+          },
+          "networkProfile": {
+            "networkInterfaceConfigurations": [
+              {
+                "name": "nic",
+                "properties": {
+                  "primary": true,
+                  "ipConfigurations": [
+                    {
+                      "name": "ipconfig",
+                      "properties": {
+                        "subnet": {
+                          "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetmwiki'))]"
+                        },
+                        "loadBalancerBackendAddressPools": [
+                          {
+                            "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('mwikiNodeLoadBalancerName'), variables('mwikiNodeLoadBalancerBackEndName'))]"
+                          }
+                        ],
+                        "loadBalancerInboundNatPools": [
+                          {
+                            "id": "[resourceId('Microsoft.Network/loadBalancers/inboundNatPools', variables('mwikiNodeLoadBalancerName'), variables('mwikiNodeLoadBalancerNatPoolName'))]"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "extensionProfile": {
+            "extensions": [
+              {
+                "type": "Microsoft.Compute/virtualMachines/extensions",
+                "name": "[concat(variables('vmssName'),'-LinuxCustomScriptExtension')]",
+                "properties": {
+                  "publisher": "Microsoft.Azure.Extensions",
+                  "type": "CustomScript",
+                  "typeHandlerVersion": "2.0",
+                  "autoUpgradeMinorVersion": true,
+                  "settings": {
+                    "fileUris": [
+                      "https://raw.githubusercontent.com/PraveenAnil/mediawiki-azure/main/automation/script01.sh",
+                      "https://raw.githubusercontent.com/PraveenAnil/mediawiki-azure/main/automation/script02.sh"
+                    ],
+                    "commandToExecute": "[concat(variables('customScriptCommand'),' script01.sh ', parameters('mssqlPassword'),' ',parameters('wikiPassword'),variables('scriptClose'))]"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
+        "[resourceId('Microsoft.Network/loadBalancers', variables('mwikiNodeLoadBalancerName'))]"
+      ]
+    }
+
+  ],
+  "outputs": {
+    "Linux VM DNS Name": {
+      "type": "string",
+      "value": "[concat('http://',reference(resourceId('Microsoft.Network/publicIPAddresses',variables('mwikiPublicIPAddressName'))).dnsSettings.fqdn, '/w')]"
+    },
+    "MediaWiki VM Username": {
+      "type": "string",
+      "value": "[parameters('adminUsername')]"
+    },
+    "MediaWiki VM Password": {
+      "type": "string",
+      "value": "[parameters('adminPasswordOrKey')]"
+    },
+    "MediaWiki DB Username": {
+      "type": "string",
+      "value": "wiki"
+    },
+    "MediaWiki DB Password": {
+      "type": "string",
+      "value": "[parameters('wikiPassword')]"
+    },
+    "MediaWiki DBName": {
+      "type": "string",
+      "value": "wikidatabase"
+    },
+    "MySQL Admin Username": {
+      "type": "string",
+      "value": "root"
+    },
+    "MySQL Password": {
+      "type": "string",
+      "value": "[parameters('mssqlPassword')]"
+    }
+
+  }
+}
