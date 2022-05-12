@@ -299,7 +299,11 @@
 
   ],
   "outputs": {
-    "Linux VM DNS Name": {
+    "MediaWiki VM DNS Name": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('mwikiPublicIPAddressName'))).dnsSettings.fqdn]"
+    },
+   "MediaWiki URL": {
       "type": "string",
       "value": "[concat('http://',reference(resourceId('Microsoft.Network/publicIPAddresses',variables('mwikiPublicIPAddressName'))).dnsSettings.fqdn, '/w')]"
     },
